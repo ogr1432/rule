@@ -1,0 +1,176 @@
+# DNS防泄露版本（通用 + AdGuard兼容）
+
+proxy-providers:
+  pq:
+    url: "https://dash.pqjc.site/api/v1/pq/77d1937a92916710ffe17021afffe99e"
+    type: http
+    filter: "(?i)新加坡|日本|美国|台湾|韩国"
+    interval: 43200
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+    proxy: 🎯 全球直连
+
+  mj:
+    url: "https://47.112.97.173:5000/api/v1/client/subscribe?token=e2014b85bccbd5ce49734af632b84862"
+    type: http
+    filter: "(?i)新加坡|日本|美国|台湾|韩国"
+    interval: 43200
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+    proxy: 🎯 全球直连
+    
+proxies: []
+
+mixed-port: 7890
+allow-lan: true
+bind-address: "*"
+ipv6: false
+unified-delay: true
+tcp-concurrent: true
+log-level: warning
+global-client-fingerprint: chrome
+keep-alive-idle: 600
+keep-alive-interval: 15
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+sniffer:
+  enable: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+  skip-domain:
+    - "Mijia Cloud"
+    - "+.push.apple.com"
+
+tun:
+  enable: true
+  stack: mixed
+  dns-hijack: ["any:53", "tcp://any:53"]
+  auto-route: false
+  auto-redirect: false
+  auto-detect-interface: false
+
+# ================= DNS 核心（已重构） =================
+dns:
+  enable: true
+  cache-algorithm: arc
+  listen: 0.0.0.0:1053
+  ipv6: false
+  respect-rules: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 28.0.0.1/8
+  fake-ip-filter-mode: blacklist
+
+  # 启动用，避免循环解析
+  default-nameserver:
+    - 223.5.5.5
+    - 1.1.1.1
+
+  proxy-server-nameserver:
+    - 8.8.8.8
+    - 1.1.1.1
+
+  # 通用写法（会被你OpenClash覆写）
+  nameserver:
+    - 8.8.8.8
+    - 1.1.1.1
+
+  # ⭐关键：强制DNS分流（不会被覆写）
+  nameserver-policy:
+    geosite:cn:
+      - 127.0.0.1:1745
+      - https://223.5.5.5/dns-query
+
+    geosite:geolocation-!cn:
+      - 8.8.8.8
+      - 1.1.1.1
+
+  fake-ip-filter:
+    - "rule-set:fakeipfilter_domain"
+
+# ================= 以下完全保持原样 =================
+
+proxy-groups:
+  - {name: 🎯 全球直连, type: select, proxies: [DIRECT]}  
+  - {name: 🚀 节点选择, type: select, use: [pq, mj]}
+  - {name: 📹 YouTube, type: select, use: [pq, mj]}
+  - {name: 🤖 ChatGPT, type: select, use: [pq, mj], proxies: [🚀 节点选择]}
+  - {name: 👨🏿‍💻 GitHub, type: select, use: [pq, mj], proxies: [🚀 节点选择]}
+  - {name: 🐬 OneDrive, type: select, use: [pq, mj], proxies: [📹 YouTube]}
+  - {name: 🪟 Microsoft, type: select, use: [pq, mj], proxies: [🚀 节点选择]}
+  - {name: 🎵 TikTok, type: select, use: [pq, mj], proxies: [📹 YouTube]}
+  - {name: 📲 Telegram, type: select, use: [pq, mj], proxies: [🚀 节点选择]}
+  - {name: 🎥 NETFLIX, type: select, use: [pq, mj], proxies: [📹 YouTube]}
+  - {name: 💶 PayPal, type: select, use: [pq, mj], proxies: [🚀 节点选择]}
+  - {name: 🐟 漏网之鱼, type: select, use: [pq, mj], proxies: [📹 YouTube, 🚀 节点选择]}
+
+rules:
+  - "DST-PORT,53,🎯 全球直连"
+  - RULE-SET,private_ip,🎯 全球直连,no-resolve
+  - RULE-SET,private_domain,🎯 全球直连
+  - RULE-SET,NAS,🎯 全球直连
+  - DOMAIN-SUFFIX,qichiyu.com,🚀 节点选择
+  - RULE-SET,proxylite,🚀 节点选择
+  - RULE-SET,youtube_domain,📹 YouTube
+  - RULE-SET,ai,🤖 ChatGPT
+  - RULE-SET,google_domain,🚀 节点选择
+  - RULE-SET,github_domain,👨🏿‍💻 GitHub
+  - RULE-SET,onedrive_domain,🐬 OneDrive
+  - RULE-SET,microsoft_domain,🪟 Microsoft
+  - RULE-SET,apple_domain,🎯 全球直连
+  - RULE-SET,tiktok_domain,🎵 TikTok
+  - RULE-SET,telegram_domain,📲 Telegram
+  - RULE-SET,netflix_domain,🎥 NETFLIX
+  - RULE-SET,paypal_domain,💶 PayPal
+  - RULE-SET,apple_ip,🎯 全球直连
+  - RULE-SET,google_ip,🚀 节点选择
+  - RULE-SET,netflix_ip,🎥 NETFLIX
+  - RULE-SET,telegram_ip,📲 Telegram
+  - RULE-SET,geolocation-!cn,🚀 节点选择
+  - RULE-SET,cn_domain,🎯 全球直连
+  - RULE-SET,cn_ip,🎯 全球直连
+  - MATCH,🐟 漏网之鱼
+
+rule-anchor:
+  ip: &ip {type: http, interval: 86400, behavior: ipcidr, format: mrs}
+  domain: &domain {type: http, interval: 86400, behavior: domain, format: mrs}
+  class: &class {type: http, interval: 86400, behavior: classical, format: text}
+
+rule-providers: 
+  fakeipfilter_domain: {<<: *domain, url: "https://raw.githubusercontent.com/wwqgtxx/clash-rules/release/fakeip-filter.mrs"}
+  private_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"}
+  proxylite: { <<: *class, url: "https://raw.githubusercontent.com/ogr1432/rule/refs/heads/main/rules/proxy.list"}
+  NAS: { <<: *class, url: "https://raw.githubusercontent.com/ogr1432/ACL4SSR/refs/heads/master/Clash/NAS.list"}
+  ai: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/category-ai-!cn.mrs" }
+  youtube_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/youtube.mrs"}
+  google_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/google.mrs"}
+  github_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.mrs"}
+  telegram_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/telegram.mrs"}
+  netflix_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/netflix.mrs"}
+  paypal_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/paypal.mrs"}
+  onedrive_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/onedrive.mrs"}
+  microsoft_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/microsoft.mrs"}
+  apple_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/apple.mrs"}
+  speedtest_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/ookla-speedtest.mrs"}
+  tiktok_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tiktok.mrs"}
+  geolocation-!cn: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/geolocation-!cn.mrs"}
+  cn_domain: { <<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"}
+  
+  private_ip: {<<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs"}
+  cn_ip: { <<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"}
+  google_ip: { <<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/google.mrs"}
+  telegram_ip: { <<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/telegram.mrs"}
+  netflix_ip: { <<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/netflix.mrs"}
+  apple_ip: {<<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo-lite/geoip/apple.mrs"}
