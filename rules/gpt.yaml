@@ -77,11 +77,11 @@ dns:
   # 启动用，避免循环解析
   default-nameserver:
     - 223.5.5.5
-    - 1.1.1.1
+    - 119.29.29.29
 
   proxy-server-nameserver:
-    - 8.8.8.8
-    - 1.1.1.1
+    - 223.5.5.5
+    - 119.29.29.29
 
   # 通用写法（会被你OpenClash覆写）
   nameserver:
